@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>写真集 - 高清写真套图展示</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- 顶部导航 -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">📷 写真集</a>
+      <nav class="nav">
+        <a href="#" class="nav-link active">推荐</a>
+        <a href="#" class="nav-link">摄影师</a>
+        <a href="#" class="nav-link">分类</a>
+        <a href="#" class="nav-link">排行榜</a>
+      </nav>
+      <div class="header-right">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="搜索写真、摄影师、模特...">
+          <button id="searchBtn">🔍</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容 -->
+  <main class="main container">
+
+    <!-- 推荐摄影师 -->
+    <section class="section">
+      <h2 class="section-title">
+        <span>推荐摄影师</span>
+        <a href="#" class="more">更多 &gt;</a>
+      </h2>
+      <div class="photographers-scroll" id="photographersList">
+        <!-- JS 动态生成 -->
+      </div>
+    </section>
+
+    <!-- 作品展示 -->
+    <section class="section">
+      <h2 class="section-title">
+        <span>最新作品</span>
+        <div class="sort-tabs">
+          <button class="sort-tab active" data-sort="latest">最新</button>
+          <button class="sort-tab" data-sort="popular">热门</button>
+          <button class="sort-tab" data-sort="views">浏览最多</button>
+        </div>
+      </h2>
+      <div class="gallery-grid" id="galleryGrid">
+        <!-- JS 动态生成 -->
+      </div>
+      <!-- 加载更多 -->
+      <div class="load-more-wrap">
+        <button class="load-more" id="loadMoreBtn">加载更多</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; 2026 写真集 - 高清写真套图展示平台</p>
+      <p class="footer-sub">本站所有内容仅供展示，图片来源于网络。</p>
+    </div>
+  </footer>
+
+  <!-- 图集详情弹窗 -->
+  <div class="modal-overlay" id="galleryModal">
+    <div class="modal" id="modalContent">
+      <button class="modal-close" id="modalClose">&times;</button>
+      <div class="modal-body" id="modalBody">
+        <!-- JS 动态生成 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 回到顶部 -->
+  <button class="back-to-top" id="backToTop">↑</button>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
