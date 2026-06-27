@@ -1,25 +1,31 @@
 // ====== DOM 元素 ======
-const photographersList = document.getElementById('photographersList');
-const galleryGrid = document.getElementById('galleryGrid');
+const authorsList = document.getElementById('authorsList');
+const modelGrid = document.getElementById('modelGrid');
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const loadMoreBtn = document.getElementById('loadMoreBtn');
 const backToTopBtn = document.getElementById('backToTop');
-const galleryModal = document.getElementById('galleryModal');
+const modelModal = document.getElementById('modelModal');
 const modalBody = document.getElementById('modalBody');
 const modalClose = document.getElementById('modalClose');
 const sortTabs = document.querySelectorAll('.sort-tab');
+const navLinks = document.querySelectorAll('.nav-link');
+const baseBtns = document.querySelectorAll('.base-btn');
 
 // ====== 状态 ======
 let currentPage = 1;
 const pageSize = 20;
 let currentSort = 'latest';
 let currentSearch = '';
-let displayedGalleries = [...galleries];
+let currentType = 'all';
+let currentBase = 'all';
+let displayedModels = [...models];
 
 // ====== 工具函数 ======
-function formatViews(n) {
+function formatNum(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
   if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
   return n.toString();
 }
 
@@ -31,153 +37,187 @@ function debounce(fn, delay = 300) {
   };
 }
 
-// ====== 渲染摄影师列表 ======
-function renderPhotographers() {
-  photographersList.innerHTML = photographers
+// ====== 渲染作者列表 ======
+function renderAuthors() {
+  // 按模型数排序
+  const sortedAuthors = [...authors].sort((a, b) => b.models - a.models).slice(0, 12);
+
+  authorsList.innerHTML = sortedAuthors
     .map(
-      (p) => `
-    <div class="photographer-card" data-id="${p.id}">
-      <img class="photographer-avatar" src="${p.avatar}" alt="${p.name}" loading="lazy">
-      <span class="photographer-name">${p.name}</span>
+      (a) => `
+    <div class="author-card" data-name="${a.name}">
+      <img class="author-avatar" src="${a.avatar}" alt="${a.name}" loading="lazy">
+      <span class="author-name">${a.name}</span>
+      <span class="author-count">${a.models} 个模型</span>
     </div>
   `
     )
     .join('');
 
-  // 点击摄影师筛选作品
-  photographersList.querySelectorAll('.photographer-card').forEach((card) => {
+  authorsList.querySelectorAll('.author-card').forEach((card) => {
     card.addEventListener('click', () => {
-      const name = card.querySelector('.photographer-name').textContent;
+      const name = card.dataset.name;
       currentSearch = name;
       searchInput.value = name;
-      filterAndRender();
+      applyAllFilters();
     });
   });
 }
 
 // ====== 排序 ======
-function sortGalleries(list, sort) {
+function sortModels(list, sort) {
   const sorted = [...list];
   switch (sort) {
     case 'latest':
-      return sorted.reverse(); // data 中后面的新
+      return sorted.sort((a, b) => new Date(b.updated) - new Date(a.updated));
     case 'popular':
-      return sorted.sort((a, b) => b.count - a.count);
-    case 'views':
-      return sorted.sort((a, b) => b.views - a.views);
+      return sorted.sort((a, b) => b.likes - a.likes);
+    case 'downloads':
+      return sorted.sort((a, b) => b.downloads - a.downloads);
     default:
       return sorted;
   }
 }
 
 // ====== 搜索过滤 ======
-function filterGalleries(list, keyword) {
+function filterModels(list, keyword) {
   if (!keyword.trim()) return list;
   const kw = keyword.toLowerCase();
   return list.filter(
-    (g) =>
-      g.title.toLowerCase().includes(kw) ||
-      g.photographer.name.toLowerCase().includes(kw) ||
-      (g.model && g.model.name.toLowerCase().includes(kw)) ||
-      (g.tags && g.tags.some((t) => t.toLowerCase().includes(kw)))
+    (m) =>
+      m.name.toLowerCase().includes(kw) ||
+      m.author.name.toLowerCase().includes(kw) ||
+      m.typeLabel.toLowerCase().includes(kw) ||
+      m.type.toLowerCase().includes(kw) ||
+      (m.baseModel && m.baseModel.some((b) => b.toLowerCase().includes(kw))) ||
+      (m.tags && m.tags.some((t) => t.toLowerCase().includes(kw))) ||
+      (m.description && m.description.toLowerCase().includes(kw))
   );
 }
 
-function filterAndRender() {
-  let result = filterGalleries(galleries, currentSearch);
-  result = sortGalleries(result, currentSort);
-  displayedGalleries = result;
-  currentPage = 1;
-  renderGalleryPage(1);
+function filterByType(list, type) {
+  if (type === 'all') return list;
+  return list.filter((m) => m.type === type);
 }
 
-// ====== 渲染图集卡片 ======
-function renderGalleryCard(g) {
-  const modelHtml = g.model
-    ? `<a href="#" onclick="event.stopPropagation()">${g.model.name}</a>`
-    : '';
-  const separator = g.model ? ' / ' : '';
+function filterByBase(list, base) {
+  if (base === 'all') return list;
+  return list.filter((m) => m.baseModel && m.baseModel.includes(base));
+}
+
+function applyAllFilters() {
+  let result = [...models];
+  result = filterByType(result, currentType);
+  result = filterByBase(result, currentBase);
+  result = filterModels(result, currentSearch);
+  result = sortModels(result, currentSort);
+  displayedModels = result;
+  currentPage = 1;
+  renderModelPage(1);
+}
+
+// ====== 渲染模型卡片 ======
+function renderModelCard(m) {
+  const baseTags = (m.baseModel || []).slice(0, 3).map((b) => `<span class="model-base-tag">${b}</span>`).join('');
+  const moreTag = (m.baseModel || []).length > 3 ? `<span class="model-base-tag">+${m.baseModel.length - 3}</span>` : '';
 
   return `
-    <div class="gallery-card" data-id="${g.id}">
-      <div class="gallery-card-img">
-        <img src="${g.cover}" alt="${g.title}" loading="lazy">
-        <span class="gallery-card-count">${g.count}p</span>
+    <div class="model-card" data-id="${m.id}">
+      <div class="model-card-img">
+        <img src="${m.cover}" alt="${m.name}" loading="lazy">
+        <span class="model-type-badge ${m.type}">${m.typeLabel}</span>
+        <div class="model-base-tags">${baseTags}${moreTag}</div>
       </div>
-      <div class="gallery-card-info">
-        <div class="gallery-card-title">${g.title}</div>
-        <div class="gallery-card-meta">
-          <a href="#" onclick="event.stopPropagation()">${g.photographer.name}</a>
-          ${separator}${modelHtml}
+      <div class="model-card-info">
+        <div class="model-card-name">${m.name}</div>
+        <div class="model-card-author">by ${m.author.name}</div>
+        <div class="model-card-stats">
+          <span>⬇ ${formatNum(m.downloads)}</span>
+          <span>❤ ${formatNum(m.likes)}</span>
+          <span>⭐ ${m.rating}</span>
         </div>
       </div>
     </div>
   `;
 }
 
-function renderGalleryPage(page) {
+function renderModelPage(page) {
   const start = 0;
   const end = page * pageSize;
-  const pageItems = displayedGalleries.slice(start, end);
+  const pageItems = displayedModels.slice(start, end);
 
   if (page === 1) {
-    galleryGrid.innerHTML = '';
+    modelGrid.innerHTML = '';
   }
 
   if (pageItems.length === 0 && page === 1) {
-    galleryGrid.innerHTML = `
+    modelGrid.innerHTML = `
       <div class="empty-state">
-        <div style="font-size:48px">📭</div>
-        <p>没有找到相关作品</p>
+        <div style="font-size:48px">🔍</div>
+        <p>没有找到相关模型</p>
       </div>
     `;
     loadMoreBtn.style.display = 'none';
     return;
   }
 
-  galleryGrid.innerHTML = pageItems.map(renderGalleryCard).join('');
+  modelGrid.innerHTML = pageItems.map(renderModelCard).join('');
 
   // 绑定点击事件
-  galleryGrid.querySelectorAll('.gallery-card').forEach((card) => {
+  modelGrid.querySelectorAll('.model-card').forEach((card) => {
     card.addEventListener('click', () => {
       const id = parseInt(card.dataset.id);
-      openGalleryModal(id);
+      openModelModal(id);
     });
   });
 
   // 加载更多按钮状态
-  if (end >= displayedGalleries.length) {
+  if (end >= displayedModels.length) {
     loadMoreBtn.style.display = 'none';
   } else {
     loadMoreBtn.style.display = 'inline-block';
   }
 }
 
-// ====== 图集详情弹窗 ======
-function openGalleryModal(id) {
-  const gallery = galleries.find((g) => g.id === id);
-  if (!gallery) return;
+// ====== 模型详情弹窗 ======
+function openModelModal(id) {
+  const model = models.find((m) => m.id === id);
+  if (!model) return;
 
-  const modelHtml = gallery.model
-    ? `<span>模特：<a href="#">${gallery.model.name}</a></span>`
-    : '';
+  const baseTags = model.baseModel.map((b) => `<span class="badge" style="background:#1976d2;">${b}</span>`).join(' ');
+  const tagBadges = model.tags ? model.tags.map((t) => `<span class="badge" style="background:#666;">#${t}</span>`).join(' ') : '';
 
   modalBody.innerHTML = `
-    <div class="modal-header">
-      <h2>${gallery.title}</h2>
-      <div class="modal-meta">
-        <span>摄影师：<a href="#">${gallery.photographer.name}</a></span>
-        ${modelHtml}
-        <span>共 ${gallery.count} 张</span>
-        <span>${formatViews(gallery.views)} 浏览</span>
-        ${gallery.tags ? gallery.tags.map(t => `<span style="background:#ffe0e8;color:#e8547c;padding:2px 8px;border-radius:10px;font-size:12px;">#${t}</span>`).join('') : ''}
+    <div class="modal-detail-header">
+      <img class="modal-detail-cover" src="${model.cover}" alt="${model.name}">
+      <div class="modal-detail-info">
+        <h2>${model.name}</h2>
+        <div class="modal-detail-meta">
+          <span class="badge ${model.type}" style="background: var(--type-${model.type.toLowerCase()})">${model.typeLabel}</span>
+          ${baseTags}
+          ${tagBadges}
+        </div>
+        <div class="modal-detail-author">作者：${model.author.name}</div>
+        <div class="modal-detail-stats">
+          <span>⬇ <strong>${formatNum(model.downloads)}</strong> 下载</span>
+          <span>❤ <strong>${formatNum(model.likes)}</strong> 点赞</span>
+          <span>⭐ <strong>${model.rating}</strong> 评分</span>
+        </div>
+        <div class="modal-detail-desc">${model.description}</div>
+        <div class="modal-detail-info-row">
+          <span>版本：<strong>${model.version}</strong></span>
+          <span>文件大小：<strong>${model.fileSize}</strong></span>
+          <span>更新日期：<strong>${model.updated}</strong></span>
+          ${model.triggerWords ? `<span>触发词：<strong>${model.triggerWords}</strong></span>` : ''}
+        </div>
       </div>
     </div>
+    <div class="modal-sample-title">示例图片 (${model.sampleImages.length})</div>
     <div class="modal-images">
-      ${gallery.images
+      ${model.sampleImages
         .map(
           (img, i) =>
-            `<img src="${img}" alt="${gallery.title} ${i + 1}" loading="lazy" data-index="${i}">`
+            `<img src="${img}" alt="${model.name} 示例 ${i + 1}" loading="lazy" data-index="${i}">`
         )
         .join('')}
     </div>
@@ -187,16 +227,16 @@ function openGalleryModal(id) {
   modalBody.querySelectorAll('.modal-images img').forEach((img) => {
     img.addEventListener('click', () => {
       const idx = parseInt(img.dataset.index);
-      openLightbox(gallery.images, idx);
+      openLightbox(model.sampleImages, idx);
     });
   });
 
-  galleryModal.classList.add('active');
+  modelModal.classList.add('active');
   document.body.style.overflow = 'hidden';
 }
 
-function closeGalleryModal() {
-  galleryModal.classList.remove('active');
+function closeModelModal() {
+  modelModal.classList.remove('active');
   document.body.style.overflow = '';
 }
 
@@ -233,10 +273,8 @@ function openLightbox(images, index) {
   lightboxEl.classList.add('active');
   document.body.style.overflow = 'hidden';
 
-  // 键盘导航
   document.addEventListener('keydown', handleLightboxKey);
 
-  // 左右按钮
   lightboxEl.querySelector('.lightbox-prev').onclick = () => {
     lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
     updateLightboxImage();
@@ -273,18 +311,39 @@ function handleLightboxKey(e) {
 
 // ====== 事件绑定 ======
 
+// 导航（模型类型筛选）
+navLinks.forEach((link) => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    navLinks.forEach((l) => l.classList.remove('active'));
+    link.classList.add('active');
+    currentType = link.dataset.type;
+    applyAllFilters();
+  });
+});
+
+// 底模筛选
+baseBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    baseBtns.forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentBase = btn.dataset.base;
+    applyAllFilters();
+  });
+});
+
 // 搜索
 searchInput.addEventListener(
   'input',
   debounce(() => {
     currentSearch = searchInput.value;
-    filterAndRender();
+    applyAllFilters();
   }, 400)
 );
 
 searchBtn.addEventListener('click', () => {
   currentSearch = searchInput.value;
-  filterAndRender();
+  applyAllFilters();
 });
 
 // 排序
@@ -293,29 +352,28 @@ sortTabs.forEach((tab) => {
     sortTabs.forEach((t) => t.classList.remove('active'));
     tab.classList.add('active');
     currentSort = tab.dataset.sort;
-    filterAndRender();
+    applyAllFilters();
   });
 });
 
 // 加载更多
 loadMoreBtn.addEventListener('click', () => {
   currentPage++;
-  renderGalleryPage(currentPage);
-  // 滚动到新内容
-  const lastCard = galleryGrid.lastElementChild;
+  renderModelPage(currentPage);
+  const lastCard = modelGrid.lastElementChild;
   if (lastCard) {
     lastCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 });
 
 // 弹窗关闭
-modalClose.addEventListener('click', closeGalleryModal);
-galleryModal.addEventListener('click', (e) => {
-  if (e.target === galleryModal) closeGalleryModal();
+modalClose.addEventListener('click', closeModelModal);
+modelModal.addEventListener('click', (e) => {
+  if (e.target === modelModal) closeModelModal();
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && galleryModal.classList.contains('active')) {
-    closeGalleryModal();
+  if (e.key === 'Escape' && modelModal.classList.contains('active')) {
+    closeModelModal();
   }
 });
 
@@ -334,8 +392,8 @@ backToTopBtn.addEventListener('click', () => {
 
 // ====== 初始化 ======
 function init() {
-  renderPhotographers();
-  filterAndRender();
+  renderAuthors();
+  applyAllFilters();
 }
 
 init();
